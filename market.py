@@ -14,9 +14,9 @@ class market:
     marketMaker12345 =marketMaker()
    
 
-    AAPL           = marketMaker12345.IPO('AAPL', 124.00, 10000)
+    AAPL           = marketMaker12345.IPO('AAPL', 1.80, 298333)
     KO             = marketMaker12345.IPO('KO', 1.79, 300000)
-    JNJ            = marketMaker12345.IPO('JNJ',400,45000)
+    JNJ            = marketMaker12345.IPO('JNJ',1.50,358000)
 
 
 
@@ -27,11 +27,14 @@ class market:
 
 
 
-    valueTrader123 = trader('valueTrader',1,1,10000, marketMaker12345)
+    valueTrader123 = trader('valueTrader',4,1,10000, marketMaker12345)
     trendFollower  = trader('trendFollower',1,1,10000, marketMaker12345)
+    passiveTrader  = trader('passiveTrader',4,1,10000, marketMaker12345)
+    noiseTrader    = trader('noiseTrader',1,1,100000, marketMaker12345)
+    Traders        = [valueTrader123,trendFollower,passiveTrader,noiseTrader ]
     clock          = watch()
 
-
+    
 
     marketMaker12345.setRiskFreeRate(0.02)
 
@@ -46,20 +49,20 @@ class market:
     if __name__ == '__main__':
         clock.start()
 
-        
         while clock.time() < 20:
             qoutes = marketMaker12345.sendQoutes()
-            valueTrader123.receiveQoutes(qoutes,clock.time())
-            trendFollower.receiveQoutes(qoutes,clock.time())
+            Orders = 0
+            for trader in Traders:
+                trader.receiveQoutes(qoutes,clock.time())
+                Orders += trader.respond()
 
-            Orders = valueTrader123.respond() + trendFollower.respond() 
 
             marketMaker12345.receiveOrders(Orders)
 
             clock.tick()
 
         
-        
+        marketMaker12345.stockPrice.to_csv('Update.csv')
         print('---------------------')
         print(marketMaker12345.stockPrice)
         print('---------------------')

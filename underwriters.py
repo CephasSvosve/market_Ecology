@@ -81,9 +81,8 @@ class marketMaker:
 
 
     def setPrice(self, demand):
-        self.stockPrice.loc[len(self.stockPrice)] = self.stockPrice.iloc[-1] + 0.002*np.array(demand)
-       
-
+        self.stockPrice.loc[len(self.stockPrice)]          = self.stockPrice.iloc[-1] + np.random.normal(0.1,1)+np.array(demand)
+        self.stockInventory.loc[len(self.stockInventory)]  = self.stockInventory.iloc[-1] + self.newIssue()   #Incase we want to include issuance of additional shares.
 
         
     def setAsk(self, stockPrice):
@@ -102,3 +101,29 @@ class marketMaker:
     def sendQoutes(self):
         return self.stockPrice
         #return self.stockBid.pop(), self.stockAsk.pop()
+
+
+    def newIssue(self,tickerID,numberofshares):
+        newShares = []
+        for ticker in self.stockInventory.columns:
+            if (ticker == tickerID):
+                a = self.stockInventory[ticker].values[-1] + numberofshares
+            else:
+                a = 0
+            newShares.append(a)
+
+        return np.array(newShares)
+
+
+    
+    def newIssue(self):
+        newShares = []
+        for tickerID in self.stockInventory.columns:
+            a = 0
+            newShares.append(a)
+
+        return np.array(newShares)
+
+
+    
+        

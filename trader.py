@@ -34,7 +34,11 @@ class trader:
         
 
 
-
+       
+        #For the Ornstein Uhlenbeck process used on the noise trader's model, we wish to store the previous random noise term
+        # so we create the random variable X that we will use to generate noise in the noise trader's function outside
+        #the function so that the stored value is not altered each time we call the function
+        self.X   = [np.random.normal(0,1)] 
 
 
         self.stockValue        = pd.DataFrame(columns= self.marketMaker.stockPrice.columns) 
@@ -316,8 +320,6 @@ class trader:
 
 
 
-
-
     def noiseTrader(self):    
 
         t          = self.marketWatch
@@ -344,8 +346,16 @@ class trader:
         #We calculate value of each stock using the trader's method of valuing the stocks and update the  stockValue dataframe
         self.stockValue.loc[len(self.stockValue)] = [5*self.stockValue[tickerID].values[-1] for tickerID in self.stockValue.columns ]
 
-        dX = rho*(mu - X)*dt + sd*dW
+        dt  = self.rebalancingPeriod
+        dW  = np.random.normal(0,1)
+        rho = 0.104943177
+        mu  = 1
+        sd  = 0.12
 
+        
+
+        Xt       = rho*(mu - self.X[-1])*dt + sd*dW
+        self.X   = [Xt]
 
 
 
@@ -354,7 +364,7 @@ class trader:
 
 
         #Using the value, we then calculate the trading signal for each stock in the dataframe 
-        signalVT_i   = [np.log2(self.stockValue[tickerID].values[tau])-np.log2(self.stockPrice[tickerID].values[tau]) for tickerID in  self.stockValue.columns]
+        signalVT_i   = [np.log2(self.X[-1]*self.stockValue[tickerID].values[tau])-np.log2(self.stockPrice[tickerID].values[tau]) for tickerID in  self.stockValue.columns]
         
 
 
@@ -435,7 +445,7 @@ class trader:
 #Trader's action point
 
     def respond(self):   
-                                            
+        try:                                   
             if self.strategy   == 'valueTrader':
                 return self.valueTrader()
             elif self.strategy == 'noiseTrader':
@@ -444,4 +454,6 @@ class trader:
                 return self.trendFollower()
             elif self.strategy == 'passiveTrader':
                 return self.passiveTrader()
+        except:
+            print(f'Check {self.strategy}')
        
