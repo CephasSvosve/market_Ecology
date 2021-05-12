@@ -1,4 +1,5 @@
 from marketMaker import marketMaker
+from dataFrameControl import dfControl as df
 import numpy as np
 import pandas as pd 
 import sys
@@ -25,10 +26,10 @@ class trader:
 
 #We state the trader's dynamic attributes
 
-        self.numberofshares    = pd.DataFrame(columns= self.marketMaker.stockPrice.columns)   
+        self.numberofshares    = pd.DataFrame(columns = self.marketMaker.stockPrice.columns)   
         self.balanceSheet      = [initialWealth]                             
         self.cashAccount       = [0]
-        self.cashFlow          = [500]
+        self.cashFlow          = [initialWealth]
         self.excessDemand      = pd.DataFrame(columns= self.marketMaker.stockPrice.columns)
            
         
@@ -41,7 +42,7 @@ class trader:
         self.X   = [np.random.normal(0,1)] 
 
 
-        self.stockValue        = pd.DataFrame(columns= self.marketMaker.stockPrice.columns) 
+        self.stockValue        = pd.DataFrame(columns = self.marketMaker.stockPrice.columns) 
         #This is a dataframe of the value of each of the stocks available calculated according to the trader's own formula
             #We assume that all stocks are introduced at the beginning of the whole process so that
                 #we can use columns in the marketMaker's stockPrice Dataframe
@@ -68,9 +69,7 @@ class trader:
        
         t          = self.marketWatch
         tau        = np.int(self.rebalancingPeriod * np.floor(t/self.rebalancingPeriod))
-        cashFlow_t = 0
-
-
+        
 
 
 
@@ -82,63 +81,43 @@ class trader:
     
 
         W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
-        W_t        = np.sum(W_i_t) +  self.cashAccount[-1] * (1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
+
+
+        W_t        = np.sum(
+            W_i_t) +  self.cashAccount[-1] * (
+                1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
 
 
 
-
+        cashFlow_t = np.float(np.random.normal(0,200))
         self.cashFlow.append(cashFlow_t)
+        
 
 
 
 
         #Using the value, we then calculate the trading signal for each stock in the dataframe 
-        marketCapital_i = [self.stockPrice[tickerID].values[tau] * self.marketMaker.stockInventory[tickerID].values[tau]for tickerID in  self.numberofshares.columns]
+        marketCapital_i = [df.getColumn(tickerID,self.stockPrice,False).values[tau] * df.getColumn(tickerID,self.marketMaker.stockInventory,False).values[tau] for tickerID in  self.numberofshares.columns]
         
         
-        signalVT_i      = [tickerID/np.sum(marketCapital_i) for tickerID in marketCapital_i]
+        signal_i      = [tickerID/np.sum(marketCapital_i) for tickerID in marketCapital_i]
         
 
         
         
         
-
-        demand_i     = []
-        for x,tickerID in enumerate(self.numberofshares.columns):
-            if (t==tau):
-                #given we only invest in the stock that shows the maximum signal
-                if (marketCapital_i[x] >= np.sort(marketCapital_i)[1]):
-                    d  =  self.leverage * W_t * signalVT_i[x]/self.stockPrice[tickerID].values[t]
-                else:
-                    d = 0
-            else:
-                if (marketCapital_i[x]  >= np.sort(marketCapital_i)[1]):
-                    d  =  self.leverage * self.cashFlow[t]  * signalVT_i[x]/self.stockPrice[tickerID].values[t]
-                else:
-                    d = 0
-
-            demand_i.append(d)
+       
 
 
 
+        #n stock world, investor picking one stock with highest signal;
+        demand_i = self.computeDemand(signal_i,W_t,cashFlow_t,t,tau)
+        self.updateRecords(demand_i,W_t)
+        
         
 
-
-
-        investedWealth   = np.array(demand_i )* np.array(self.stockPrice.iloc[-1])
-        uninvestedWealth = W_t - np.sum(investedWealth)
         
-
-
-
-        self.numberofshares.loc[len(self.numberofshares)]  =  demand_i 
-        self.excessDemand.loc[len(self.excessDemand)]      =  self.numberofshares.iloc[-1] - self.numberofshares.iloc[-2]
-        self.stockValue.loc[len(self.stockValue)]          =  np.sign(self.stockPrice.iloc[-1])*self.stockPrice.iloc[-1]**2
-        self.cashAccount.append(uninvestedWealth)
-        self.balanceSheet.append(W_t)
-
-        
-
+       
         return   np.array(demand_i)
 
 
@@ -154,7 +133,7 @@ class trader:
 
         t          = self.marketWatch
         tau        = np.int(self.rebalancingPeriod * np.floor(t/self.rebalancingPeriod))
-        cashFlow_t = 0
+        
 
 
 
@@ -168,16 +147,20 @@ class trader:
        
 
         W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
-        W_t        = np.sum(W_i_t) +  self.cashAccount[-1] * (1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
 
 
 
 
+        W_t        = np.sum(
+            W_i_t) +  self.cashAccount[-1] * (
+                1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
+
+
+
+        cashFlow_t = np.float(np.random.normal(0,200))
         self.cashFlow.append(cashFlow_t)
 
-
-
-
+       
         #We calculate value of each stock using the trader's method of valuing the stocks and update the  stockValue dataframe
         self.stockValue.loc[len(self.stockValue)] = [5*self.stockValue[tickerID].values[-1] for tickerID in self.stockValue.columns ]
 
@@ -186,46 +169,15 @@ class trader:
 
 
         #Using the value, we then calculate the trading signal for each stock in the dataframe 
-        signalVT_i   = [np.log2(self.stockValue[tickerID].values[tau])-np.log2(self.stockPrice[tickerID].values[tau]) for tickerID in  self.stockValue.columns]
+        signal_i   = [np.log2(
+            self.stockValue[tickerID].values[tau])-np.log2(
+                self.stockPrice[tickerID].values[tau]) for tickerID in  self.stockValue.columns]
         
 
 
-        
-
-
-        demand_i     = []
-        for x,tickerID in enumerate(self.numberofshares.columns):
-            if (t==tau):
-                #given we only invest in the stock that shows the maximum signal
-                if np.abs(signalVT_i[x]) == max(np.abs(signalVT_i)):
-                    d  =  np.sign(signalVT_i[x]) * self.leverage * W_t * (np.tanh(signalVT_i[x]+np.log(2)))/self.stockPrice[tickerID].values[t] 
-                else:
-                    d = 0
-            else:
-                if np.abs(signalVT_i[x]) == max(np.abs(signalVT_i)):
-                    d  =  np.sign(signalVT_i[x]) * self.leverage * self.cashFlow[-1]  * (np.tanh(signalVT_i[x]+np.log(2)))/self.stockPrice[tickerID].values[t] 
-                else:
-                    d = 0
-
-            demand_i.append(d)
-
-        
-
-
-
-
-
-        investedWealth   = np.array(demand_i )* np.array(self.stockPrice.iloc[-1])
-        uninvestedWealth = W_t - np.sum(investedWealth)
-        
-
-
-
-        self.numberofshares.loc[len(self.numberofshares)]  =  demand_i 
-        self.excessDemand.loc[len(self.excessDemand)]      =  self.numberofshares.iloc[-1] - self.numberofshares.iloc[-2]
-        self.stockValue.loc[len(self.stockValue)]          =  np.sign(self.stockPrice.iloc[-1])*self.stockPrice.iloc[-1]**2
-        self.cashAccount.append(uninvestedWealth)
-        self.balanceSheet.append(W_t)
+        demand_i = self.computeDemand(signal_i,W_t,cashFlow_t,t,tau)
+       
+        self.updateRecords(demand_i,W_t)
 
         
 
@@ -240,16 +192,35 @@ class trader:
     def trendFollower(self):
         
         t          = self.marketWatch
-        tau        = np.int(self.rebalancingPeriod * np.floor(t/self.rebalancingPeriod))
-        cashFlow_t = 0
+
+
+
+        tau        = np.int(
+            self.rebalancingPeriod * np.floor(
+                t/self.rebalancingPeriod))
+
+
+
+
+
+        #Where W_i_t is the wealth invested in asset i at time t
+        #W_t is the total wealth at time t comprising of the sum of wealth invested in all 
+        # individual assets plus 
+        # wealth in bonds plus interest on bonds and new wealth introduced at time t
+
+
         W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
-        W_t        = np.sum(W_i_t) +  self.cashAccount[-1] * (1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
+
+
+
+        W_t        = np.sum(
+            W_i_t) +  self.cashAccount[-1] * (
+                1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
 
         
 
 
-
-
+        cashFlow_t = np.float(np.random.normal(0,200))
         self.cashFlow.append(cashFlow_t)
 
  
@@ -257,60 +228,26 @@ class trader:
 
 
 
+        #Because trend follower compares next price to the previous one, we have to set
+        #a careful condition to take care of time 0 because a second price has not yet 
+        #been generated
 
-        signalVT_i   = []
+        signal_i   = []
         for tickerID in  self.stockValue.columns:
             if(len(self.stockPrice[tickerID].values) < self.rebalancingPeriod):
                  a =np.log2(self.stockPrice[tickerID].values[tau])-np.log2(self.stockPrice[tickerID].values[tau])
             else:
                  a =np.log2(self.stockPrice[tickerID].values[tau])-np.log2(self.stockPrice[tickerID].values[tau-self.rebalancingPeriod])
             
-            signalVT_i.append(a)
+            signal_i.append(a)
 
 
 
 
 
+        demand_i = self.computeDemand(signal_i,W_t,cashFlow_t,t,tau)
+        self.updateRecords(demand_i,W_t)
 
-
-
-        demand_i     = []
-        for x,tickerID in enumerate(self.numberofshares.columns):
-            if (t==tau):
-                #given we only invest in the stock that shows the maximum signal
-                if np.abs(signalVT_i[x]) == max(np.abs(signalVT_i)):
-                    d  =  np.sign(signalVT_i[x]) * self.leverage * W_t * (np.tanh(signalVT_i[x]+np.log(2)))/self.stockPrice[tickerID].values[t] 
-                else:
-                    d = 0
-            else:
-                if np.abs(signalVT_i[x]) == max(np.abs(signalVT_i)):
-                    d  =  np.sign(signalVT_i[x]) * self.leverage * self.cashFlow[-1]  * (np.tanh(signalVT_i[x]+np.log(2)))/self.stockPrice[tickerID].values[t] 
-                else:
-                    d = 0
-
-            demand_i.append(d)
-
-
-
-
-
-
-
-
-
-        investedWealth   = np.array(demand_i )* np.array(self.stockPrice.iloc[-1])
-        uninvestedWealth = W_t - np.sum(investedWealth)
-        
-
-
-
-        self.numberofshares.loc[len(self.numberofshares)]  =  demand_i 
-        self.excessDemand.loc[len(self.excessDemand)]      =  self.numberofshares.iloc[-1] - self.numberofshares.iloc[-2]
-        self.stockValue.loc[len(self.stockValue)]          =  np.sign(self.stockPrice.iloc[-1])*self.stockPrice.iloc[-1]**2
-        self.cashAccount.append(uninvestedWealth)
-        self.balanceSheet.append(W_t)
-
-        
 
         return  np.array(demand_i)
       
@@ -323,31 +260,57 @@ class trader:
     def noiseTrader(self):    
 
         t          = self.marketWatch
-        tau        = np.int(self.rebalancingPeriod * np.floor(t/self.rebalancingPeriod))
-        cashFlow_t = 0
-        W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
-        W_t        = np.sum(W_i_t) +  self.cashAccount[-1] * (1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
+
+
+
+
+        tau        = np.int(
+            self.rebalancingPeriod * np.floor(
+                t/self.rebalancingPeriod))
+
+
+
+        
+        
+
+
+
+
+
+
 
         #W_i_t is the wealth invested in asset i at time t
-            #W_t is the total wealth at time t comprising of the sum of wealth invested in all individual assets plus 
-                # wealth in bonds plus interest on bonds and new wealth introduced at time t
+        W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
 
 
 
 
 
 
+
+        #W_t is the total wealth at time t comprising of the sum of wealth invested in all 
+        # individual assets plus 
+        # wealth in bonds plus interest on bonds and new wealth introduced at time t
+
+
+        W_t        = np.sum(
+            W_i_t) +  self.cashAccount[-1] * (
+                1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]   
+
+
+        cashFlow_t = np.float(np.random.normal(0,200))
         self.cashFlow.append(cashFlow_t)
-
-
-
+        
 
 
         #We calculate value of each stock using the trader's method of valuing the stocks and update the  stockValue dataframe
-        self.stockValue.loc[len(self.stockValue)] = [5*self.stockValue[tickerID].values[-1] for tickerID in self.stockValue.columns ]
+        value = [5*df.getColumn(tickerID,self.stockValue,lastValueOnly=True) for tickerID in self.stockValue.columns]
+        df.appendNextRow(self.stockValue,value)
+
+
 
         dt  = self.rebalancingPeriod
-        dW  = np.random.normal(0,1)
+        dW  = np.random.normal(0,self.rebalancingPeriod)
         rho = 0.104943177
         mu  = 1
         sd  = 0.12
@@ -355,63 +318,20 @@ class trader:
         
 
         Xt       = rho*(mu - self.X[-1])*dt + sd*dW
-        self.X   = [Xt]
-
-
-
+        self.X.append(Xt)
 
 
 
 
         #Using the value, we then calculate the trading signal for each stock in the dataframe 
-        signalVT_i   = [np.log2(self.X[-1]*self.stockValue[tickerID].values[tau])-np.log2(self.stockPrice[tickerID].values[tau]) for tickerID in  self.stockValue.columns]
+        signal_i   = [np.log2(
+            np.abs(self.X[-1])*self.stockValue[tickerID].values[tau])-np.log2(
+                self.stockPrice[tickerID].values[tau]) for tickerID in  self.stockValue.columns] #correct this line
         
 
 
-
-
-
-
-
-
-
-        demand_i     = []
-        for x,tickerID in enumerate(self.numberofshares.columns):
-            if (t==tau):
-                #given we only invest in the stock that shows the maximum signal
-                if np.abs(signalVT_i[x]) == max(np.abs(signalVT_i)):
-                    d  =  np.sign(signalVT_i[x]) * self.leverage * W_t * (np.tanh(signalVT_i[x]+np.log(2)))/self.stockPrice[tickerID].values[t] 
-                else:
-                    d = 0
-            else:
-                if np.abs(signalVT_i[x]) == max(np.abs(signalVT_i)):
-                    d  =  np.sign(signalVT_i[x]) * self.leverage * self.cashFlow[-1]  * (np.tanh(signalVT_i[x]+np.log(2)))/self.stockPrice[tickerID].values[t] 
-                else:
-                    d = 0
-
-            demand_i.append(d)
-
-
-
-
-
-
-
-
-
-        investedWealth   = np.array(demand_i )* np.array(self.stockPrice.iloc[-1])
-        uninvestedWealth = W_t - np.sum(investedWealth)
-        
-
-
-
-        self.numberofshares.loc[len(self.numberofshares)]  =  demand_i 
-        self.excessDemand.loc[len(self.excessDemand)]      =  self.numberofshares.iloc[-1] - self.numberofshares.iloc[-2]
-        self.stockValue.loc[len(self.stockValue)]          =  np.sign(self.stockPrice.iloc[-1])*self.stockPrice.iloc[-1]**2
-        
-        self.cashAccount.append(uninvestedWealth)
-        self.balanceSheet.append(W_t)
-
+        demand_i = self.computeDemand(signal_i,W_t,cashFlow_t,t,tau)
+        self.updateRecords(demand_i,W_t)
         
 
         return   np.array(demand_i)
@@ -433,8 +353,119 @@ class trader:
 
     def sendOrder(self):
         print()
-   
 
+
+    
+    def computeDemand(self,signal_i,W_t,cashFlow,t,tau):
+        demand = self.demandMethod(len(signal_i),signal_i,W_t,cashFlow,t,tau)
+
+        return demand
+        
+        
+        
+
+    def demandMethod(self,argument,signal_i,wealth,cashFlow,t,tau):
+        demand = []
+        if(argument <= 1):
+            #Maarten's Algorithm
+            demand = [self.leverage * wealth * (np.tanh(signal_i)+0.5)]
+           
+            
+        
+
+        elif(argument == 2): 
+            for x,tickerID in enumerate(self.numberofshares.columns):
+                if(x<1):
+                    d1  =  self.leverage * 0.6 * wealth * (
+                            1/df.getColumn(tickerID,self.stockPrice,False).values[tau])*(
+                                1/(1 + np.exp(
+                                    -(signal_i[0]-signal_i[1])))) + (
+                                        self.leverage * 0.6 * cashFlow * (
+                                                    1/df.getColumn(
+                                                        tickerID,self.stockPrice,False).values[t])*(
+                                                            1/(
+                                                                1 + np.exp(
+                                                                            -(
+                                                                                signal_i[0]-signal_i[1])))))
+
+
+
+                    d2  =  self.leverage * 0.6 * wealth * (
+                        1/df.getColumn(tickerID,self.stockPrice,False).values[tau])*(1-(
+                            1/(1 + np.exp(
+                                -(signal_i[0]-signal_i[1]))))) + (
+                                    self.leverage * 0.6 * cashFlow * (
+                                                1/df.getColumn(
+                                                    tickerID,self.stockPrice,False).values[t])*(
+                                                        1/(
+                                                                1 + np.exp(
+                                                                        -(
+                                                                            signal_i[0]-signal_i[1])))))
+
+                                
+
+                
+                
+                    
+
+                    demand.append(d1)
+                    demand.append(d2)
+                
+                
+                
+                
+
+        else:
+                print('Code not yet implemented')
+                # #n stock world, investor picking one stock with highest signal;
+                #demand_i = []
+                # for x,tickerID in enumerate(self.numberofshares.columns):
+                #     if (t==tau):
+                #         #given we only invest in the stock that shows the maximum signal
+                #         if np.abs(signalVT_i[x]) == max(
+                #             np.abs(signalVT_i)):
+                #             d  =  np.sign(
+                #                 signalVT_i[x]) * self.leverage * W_t * (
+                #                     np.tanh(signalVT_i[x]+np.log(2)))/self.stockPrice[tickerID].values[t] 
+
+                #         else:
+                #             d = 0          
+                #     else:
+                #         if np.abs(
+                #             signalVT_i[x]) == max(np.abs(signalVT_i)):
+                #             d  =  np.sign(
+                #                 signalVT_i[x]) * self.leverage * self.cashFlow[-1]  * (
+                #                     np.tanh(signalVT_i[x]+np.log(2)))/self.stockPrice[tickerID].values[t] 
+                #         else:
+                #             d = 0
+
+                #     demand_i.append(d)
+        
+        return demand
+
+
+        
+
+
+    def updateRecords(self,demand_i,W_t):
+        
+        
+
+        investedWealth   = np.array(demand_i) * np.array((self.marketMaker.stockPrice.iloc[-1]))
+        unInvestedWealth = W_t - np.sum(investedWealth)
+        value            = df.getLastRow(self.stockValue)/0.02
+        netDemand        = df.getLastRow(
+            self.numberofshares)-df.getPenultimateRow(self.numberofshares)   
+
+
+
+        df.appendNextRow(self.numberofshares,demand_i)
+        df.appendNextRow(self.excessDemand,netDemand)
+        df.appendNextRow(self.stockValue,value )
+        self.cashAccount.append(unInvestedWealth)
+        self.balanceSheet.append(W_t)
+
+    
 
 
 
@@ -445,7 +476,7 @@ class trader:
 #Trader's action point
 
     def respond(self):   
-        try:                                   
+        #try:                                   
             if self.strategy   == 'valueTrader':
                 return self.valueTrader()
             elif self.strategy == 'noiseTrader':
@@ -454,6 +485,6 @@ class trader:
                 return self.trendFollower()
             elif self.strategy == 'passiveTrader':
                 return self.passiveTrader()
-        except:
-            print(f'Check {self.strategy}')
+        #except:
+           # print(f'Check {self.strategy}')
        

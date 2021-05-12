@@ -3,8 +3,12 @@ from assets import security
 from underwriters import marketMaker
 from marketWatch import watch
 import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
 
 class market:
+   
 
 
 
@@ -14,24 +18,20 @@ class market:
     marketMaker12345 =marketMaker()
    
 
-    AAPL           = marketMaker12345.IPO('AAPL', 1.80, 298333)
-    KO             = marketMaker12345.IPO('KO', 1.79, 300000)
-    JNJ            = marketMaker12345.IPO('JNJ',1.50,358000)
-
-
-
-    #GS             = marketMaker12345.IPO('GS', 30.5, 600000) 
-    #ADXN           = marketMaker12345.IPO('ADXV', 22.34, 80000)
-    #IMRA           = marketMaker12345.IPO('IMRA', 45.63, 20000)
+    AAPL           = marketMaker12345.IPO('AAPL', 132.60, 1000000000)
+    JNJ            = marketMaker12345.IPO('JNJ',163.52,1000000000)
 
 
 
 
-    valueTrader123 = trader('valueTrader',4,1,10000, marketMaker12345)
-    trendFollower  = trader('trendFollower',1,1,10000, marketMaker12345)
-    passiveTrader  = trader('passiveTrader',4,1,10000, marketMaker12345)
-    noiseTrader    = trader('noiseTrader',1,1,100000, marketMaker12345)
+
+    valueTrader123 = trader('valueTrader',63,1,250000000, marketMaker12345)
+    trendFollower  = trader('trendFollower',30,1,250000000, marketMaker12345)
+    passiveTrader  = trader('passiveTrader',63,1,250000000, marketMaker12345)
+    noiseTrader    = trader('noiseTrader',1,1,250000000, marketMaker12345)
     Traders        = [valueTrader123,trendFollower,passiveTrader,noiseTrader ]
+
+
     clock          = watch()
 
     
@@ -49,12 +49,13 @@ class market:
     if __name__ == '__main__':
         clock.start()
 
-        while clock.time() < 20:
+        while clock.time() < 10:
             qoutes = marketMaker12345.sendQoutes()
             Orders = 0
             for trader in Traders:
                 trader.receiveQoutes(qoutes,clock.time())
                 Orders += trader.respond()
+                
 
 
             marketMaker12345.receiveOrders(Orders)
@@ -62,20 +63,40 @@ class market:
             clock.tick()
 
         
-        marketMaker12345.stockPrice.to_csv('Update.csv')
-        print('---------------------')
-        print(marketMaker12345.stockPrice)
-        print('---------------------')
-        #print(valueTrader123.numberofshares)
-        print('---------------------')
-        print(Orders)
-        print('---------------------')
-        #print(valueTrader1.balanceSheet)
-        print('---------------------')
-        #print(valueTrader1.cashAccount)
-        print('---------------------')
-        #print(valueTrader1.cashFlow)
+        
+        output =marketMaker12345.stockPrice
 
+        def returns(output1,Asset):
+            returns= []
+            for i in range(1,len(output1[Asset])-1):
+                a= (output1[Asset][i+1]/output1[Asset][i])
+                returns.append(np.log(a))
+            return returns
+
+
+
+        #Output
+        print(output)
+        plt.style.use('seaborn')
+        figure, axis = plt.subplots(4, 1)
+        axis[0].plot(output['JNJ'], label = 'JNJ')
+        axis[0].set_ylabel('Price, ($)')
+        axis[0].legend(loc = 'upper left')
+        axis[1].plot(output['AAPL'], label = 'AAPL')
+        axis[1].set_ylabel('Price, ($)')
+        axis[1].legend(loc = 'upper left')
+        axis[2].plot(returns(output,'AAPL'), label = 'AAPL')
+        axis[2].set_ylabel('Return')
+        axis[2].set_xlabel('Day, t')
+        axis[2].legend(loc = 'upper left')
+        
+        axis[3].plot(returns(output,'JNJ'), label = 'JNJ')
+        axis[3].set_ylabel('Return')
+        axis[3].set_xlabel('Day, t')
+        axis[3].legend(loc = 'upper left')
+        plt.show()
+
+     
     
 
 

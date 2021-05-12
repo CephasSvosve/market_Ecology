@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd 
+from dataFrameControl import dfControl as df
 
 
 class marketMaker:
@@ -32,30 +33,16 @@ class marketMaker:
 
         self.stockInventory[tickerID]  = [outstandingShares]
         self.stockPrice[tickerID]      = [initialPrice]
-        self.stockBid[tickerID]        = [self.setBid(self.stockPrice[tickerID])]
-        self.stockAsk[tickerID]        = [self.setAsk(self.stockPrice[tickerID] )]
+        self.stockBid[tickerID]        = [self.setBid(df.getColumn(tickerID,self.stockPrice,lastValueOnly =True))]
+        self.stockAsk[tickerID]        = [self.setAsk(df.getColumn(tickerID,self.stockPrice,lastValueOnly =True))]
         self.stockSpread[tickerID]     = [self.stockAsk[tickerID] - self.stockBid[tickerID]]
 
         
-
-
-
-        #We set the entries at date of IPO to the initial values
-
-        #self.stockInventory[tickerID].values[-1] = outstandingShares
-        #self.stockPrice[tickerID].values[-1]     = initialPrice
-        #self.stockBid[tickerID].values[-1]       = self.setAsk(self.stockPrice[tickerID].values[-1])
-        #self.stockAsk[tickerID].values[-1]       = self.setBid(self.stockPrice[tickerID].values[-1])
-        #self.stockSpread[tickerID].values[-1]    = self.stockAsk[tickerID].values[-1]-self.stockBid[tickerID].values[-1]
 
         #At IPO we assume the marketMaker/Underwriter spends money through purchasing all shares issued by the underlying company
         #We update the marketMaker's wealth at that date accordingly
         wealthUpdate =  - (outstandingShares*initialPrice)
         self.balanceSheet = [wealthUpdate]
-
-
-
-
 
 
 
@@ -81,9 +68,13 @@ class marketMaker:
 
 
     def setPrice(self, demand):
-        self.stockPrice.loc[len(self.stockPrice)]          = self.stockPrice.iloc[-1] + np.random.normal(0.1,1)+np.array(demand)
-        self.stockInventory.loc[len(self.stockInventory)]  = self.stockInventory.iloc[-1] + self.newIssue()   #Incase we want to include issuance of additional shares.
-
+        #set new price depending on excess demand
+        newPrice  = np.random.normal(df.getLastRow(self.stockPrice),1)
+        df.appendNextRow(self.stockPrice,newPrice)
+        
+        #adjust inventory
+        newInventory  = df.getLastRow(self.stockInventory) + self.newIssue()   #Incase we want to include issuance of additional shares inter period
+        df.appendNextRow(self.stockInventory,newInventory)
         
     def setAsk(self, stockPrice):
         return stockPrice
@@ -107,7 +98,7 @@ class marketMaker:
         newShares = []
         for ticker in self.stockInventory.columns:
             if (ticker == tickerID):
-                a = self.stockInventory[ticker].values[-1] + numberofshares
+                a = df.getColumn( columnName=ticker, dataFrame = self.stockInventory, lastValueOnly = True) + numberofshares
             else:
                 a = 0
             newShares.append(a)
