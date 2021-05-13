@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd 
+from assets import security
 
 class marketMaker:
     def __init__(self):
@@ -14,6 +15,8 @@ class marketMaker:
 
     #This is a method that we use to introduce securities into the market
     def IPO(self, tickerID, initialPrice, outstandingShares):
+
+        newAsset = security(tickerID,(initialPrice * outstandingShares),outstandingShares)
 
         #We add the newstock to the stockInventory dataframe and update other dataframes accordingly
         #We set all dataframe entries prior to the IPO to zero to avoid missing entry errors
