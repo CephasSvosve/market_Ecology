@@ -13,3 +13,5 @@ class security:
         self.quarterlyDividend = []
         self.dailyDividend     = []
        
+
+    
