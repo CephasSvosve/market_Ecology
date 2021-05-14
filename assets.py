@@ -16,6 +16,8 @@ class security:
         self.bookValue         = []     
         self.quarterlyDividend = []
         self.dailyDividend     = []
+
+
        
     def dividendPayout(self):
         print()
@@ -24,7 +26,17 @@ class security:
         print()
     
     def computeDividend(self):
+        
         print()
+
+    
+    def dividendNoise(self,numberOfAssets,size, autocorrelationMatrix, correlationMatrix):
+        dzMatrix      = self.uncorrelatedRandoms(size, numberOfAssets)
+        temporalCorr  = self.temporalCorr(autocorrelationMatrix,dzMatrix)
+        crossTempCorr = self.crossCorrelation(correlationMatrix,temporalCorr)
+
+        return crossTempCorr
+
     
 
 
@@ -45,17 +57,25 @@ class security:
 
 
 
-    def temporalCorr(self, autocorrelation, randomNumbers):
-        dz     = randomNumbers
-        dw     = dz[0]
+    def temporalCorr(self, autocorrelationMatrix, dzMatrix):
+        dz     = dzMatrix
+        dw     = np.zeros((len(dz),len(dz[0])))
         
-        for i in range(len(dz)-1):
-            dx = sqrt(1-autocorrelation**2)*dz[i+1]  +   dw[-1]
-            dw.append(dx)
         
+
+        for row in range(len(dz)):
+            dw[row][0] = np.random.normal(0,1)
+            for column in range(len(dz[row])-1):
+                dx = sqrt(1-autocorrelationMatrix[row]**2)*dz[column]  +   autocorrelationMatrix[row]*dw[-1]
+
+                dw[row][column+1] = dx
+            
         return dw
 
 
 
     def crossCorrelation(self, correlationMatrix, dwMatrix):
-        print()
+        L = scipy.linalg.cholesky(correlationMatrix, lower=True)
+        Z = L.dot(dwMatrix)
+
+        return Z
