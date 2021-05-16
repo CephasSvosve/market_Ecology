@@ -1,6 +1,7 @@
 class watch:
-    def __init__(self):
-        self.t = 0
+    def __init__(self,dt):
+        self.t  = 0
+        self.dt = dt
     def time(self):
         return self.t
     def start(self):
@@ -10,7 +11,7 @@ class watch:
         self.t = 0
         return self.t
     def tick(self):
-        self.t +=1
+        self.t +=self.dt
         return self.t
 
 

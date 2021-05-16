@@ -14,9 +14,9 @@ class marketMaker:
         
 
     #This is a method that we use to introduce securities into the market
-    def IPO(self, tickerID, initialPrice, outstandingShares):
+    def IPO(self,tickerNumber,tickerID, initialPrice, outstandingShares):
 
-        newAsset = security(tickerID,(initialPrice * outstandingShares),outstandingShares)
+        newAsset = security(tickerNumber,tickerID,(initialPrice * outstandingShares),outstandingShares)
 
         #We add the newstock to the stockInventory dataframe and update other dataframes accordingly
         #We set all dataframe entries prior to the IPO to zero to avoid missing entry errors

@@ -1,10 +1,12 @@
+from re import A
 import numpy as np
 import pandas as pd 
 from dataFrameControl import dfControl as df
-
+from assets import security
+import scipy.linalg
 
 class marketMaker:
-    def __init__(self):
+    def __init__(self,clock):
         self.stockInventory = pd.DataFrame()
         self.stockPrice     = pd.DataFrame()
         self.stockBid       = pd.DataFrame()
@@ -13,6 +15,11 @@ class marketMaker:
         self.balanceSheet   = []
         self.riskFreeRate   = 0
         self.submittedDemand= []
+        self.clock          = clock
+        self.assets         = []
+        self.autoCorr     = 0
+        self.crossSecCorr = 0
+        self.dzMatrix     = 0
         
 
 
@@ -21,7 +28,11 @@ class marketMaker:
 
 
     #This is a method that we use to introduce securities into the market
-    def IPO(self, tickerID, initialPrice, outstandingShares):
+    def IPO(self,tickerNumber,tickerID, initialPrice, outstandingShares,initial_div,mu,sigma):
+
+        newAsset = security(tickerNumber,tickerID,(
+            initialPrice * outstandingShares),outstandingShares,initialPrice,initial_div,mu,sigma,self.dzMatrix,self.autoCorr,self.crossSecCorr,self.clock)
+
 
 
 
@@ -43,6 +54,10 @@ class marketMaker:
         #We update the marketMaker's wealth at that date accordingly
         wealthUpdate =  - (outstandingShares*initialPrice)
         self.balanceSheet = [wealthUpdate]
+
+
+        self.assets.append(newAsset)
+        return newAsset
 
 
 
@@ -115,6 +130,25 @@ class marketMaker:
 
         return np.array(newShares)
 
+    def setCorr(self, autoCorr, crossSecCorr):
+        self.autoCorr     = autoCorr
+        self.crossSecCorr = crossSecCorr
+
+    def randomGenerator(self,size,numberOfAssets):
+        self.dzMatrix = self.uncorrelatedRandoms(size,numberOfAssets)
 
     
-        
+    def uncorrelatedRandoms(self,size, numberOfAssets):
+        c = np.zeros((numberOfAssets,size))
+
+        for x in range(numberOfAssets):
+            c[x] = np.random.normal(0,1,size)
+
+
+        corrmatrix        = np.corrcoef(c)
+        choleskyMtrx      = scipy.linalg.cholesky(corrmatrix, lower = True)
+        invcholeskyMtrx   = np.linalg.inv(choleskyMtrx)
+        uncorrMtrx        = invcholeskyMtrx.dot(c)
+        uncorrMtrx        =np.matrix(uncorrMtrx)
+
+        return uncorrMtrx

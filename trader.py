@@ -1,4 +1,3 @@
-from marketMaker import marketMaker
 from dataFrameControl import dfControl as df
 import numpy as np
 import pandas as pd 
@@ -7,7 +6,7 @@ import sys
 
 
 class trader:
-    def __init__(self, strategy, rebalancingPeriod, leverage, initialWealth, marketMaker):
+    def __init__(self, strategy, rebalancingPeriod, leverage, initialWealth, marketMaker, clock):
 
 
 
@@ -18,6 +17,7 @@ class trader:
         self.rebalancingPeriod = rebalancingPeriod
         self.leverage          = leverage
         self.marketMaker       = marketMaker
+        self.clock             = clock
 
 
 
@@ -67,7 +67,7 @@ class trader:
 
     def passiveTrader(self):                                                
        
-        t          = self.marketWatch
+        t          = int(self.clock.time() * 1/self.clock.dt)
         tau        = np.int(self.rebalancingPeriod * np.floor(t/self.rebalancingPeriod))
         
 
@@ -81,11 +81,15 @@ class trader:
     
 
         W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
+        div_i_t    = [self.numberofshares[tickerID].values[-1] * self.marketMaker.assets[x].computeDividend() for x,tickerID in enumerate(self.stockPrice.columns)]
 
-
+        div_t      = np.sum(div_i_t) 
         W_t        = np.sum(
             W_i_t) +  self.cashAccount[-1] * (
-                1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
+                1+ self.marketMaker.riskFreeRate) + (
+                    self.cashFlow[-1] )+(
+                        div_t
+                    )   
 
 
 
@@ -131,7 +135,7 @@ class trader:
 
 
 
-        t          = self.marketWatch
+        t          = int(self.clock.time()* 1/self.clock.dt)
         tau        = np.int(self.rebalancingPeriod * np.floor(t/self.rebalancingPeriod))
         
 
@@ -147,13 +151,19 @@ class trader:
        
 
         W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
+        div_i_t    = [self.numberofshares[tickerID].values[-1] * self.marketMaker.assets[x].computeDividend() for x,tickerID in enumerate(self.stockPrice.columns)]
 
-
-
+        div_t      = np.sum(div_i_t) 
 
         W_t        = np.sum(
             W_i_t) +  self.cashAccount[-1] * (
-                1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
+                1+ self.marketMaker.riskFreeRate) + (
+                    self.cashFlow[-1] )+(
+                        div_t
+                    )   
+
+
+        
 
 
 
@@ -174,7 +184,7 @@ class trader:
                 self.stockPrice[tickerID].values[tau]) for tickerID in  self.stockValue.columns]
         
 
-
+        
         demand_i = self.computeDemand(signal_i,W_t,cashFlow_t,t,tau)
        
         self.updateRecords(demand_i,W_t)
@@ -191,7 +201,7 @@ class trader:
 
     def trendFollower(self):
         
-        t          = self.marketWatch
+        t          = int(self.clock.time()* 1/self.clock.dt)
 
 
 
@@ -213,11 +223,17 @@ class trader:
 
 
 
+        W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
+        div_i_t    = [self.numberofshares[tickerID].values[-1] * self.marketMaker.assets[x].computeDividend() for x,tickerID in enumerate(self.stockPrice.columns)]
+
+        div_t      = np.sum(div_i_t) 
         W_t        = np.sum(
             W_i_t) +  self.cashAccount[-1] * (
-                1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]     
+                1+ self.marketMaker.riskFreeRate) + (
+                    self.cashFlow[-1] )+(
+                        div_t
+                    )   
 
-        
 
 
         cashFlow_t = np.float(np.random.normal(0,200))
@@ -259,7 +275,7 @@ class trader:
 
     def noiseTrader(self):    
 
-        t          = self.marketWatch
+        t          = int(self.clock.time()* 1/self.clock.dt)
 
 
 
@@ -293,9 +309,17 @@ class trader:
         # wealth in bonds plus interest on bonds and new wealth introduced at time t
 
 
+        W_i_t      = [self.numberofshares[tickerID].values[-1] * self.stockPrice[tickerID].values[-1]  for tickerID in  self.stockPrice.columns]
+        div_i_t    = [self.numberofshares[tickerID].values[-1] * self.marketMaker.assets[x].computeDividend() for x,tickerID in enumerate(self.stockPrice.columns)]
+
+        div_t      = np.sum(div_i_t) 
         W_t        = np.sum(
             W_i_t) +  self.cashAccount[-1] * (
-                1+ self.marketMaker.riskFreeRate) + self.cashFlow[-1]   
+                1+ self.marketMaker.riskFreeRate) + (
+                    self.cashFlow[-1] )+(
+                        div_t
+                    )   
+   
 
 
         cashFlow_t = np.float(np.random.normal(0,200))
@@ -309,7 +333,7 @@ class trader:
 
 
 
-        dt  = self.rebalancingPeriod
+        dt  = self.clock.dt
         dW  = np.random.normal(0,self.rebalancingPeriod)
         rho = 0.104943177
         mu  = 1
